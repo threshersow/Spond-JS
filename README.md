@@ -1,89 +1,126 @@
-# Spond
-![spond logo](https://github.com/Olen/Spond/blob/main/images/spond-logo.png?raw=true)
+# Spond Browser Client
 
-Simple, unofficial library with some example scripts to access data from the [Spond](https://spond.com/) API.
+An unofficial, zero-dependency browser-based client for the [Spond](https://spond.com) API — built as a single embeddable HTML file with a lightweight PHP proxy.
 
-> [!WARNING]
-> Notice breaking changes from versions =< 0.99 to versions >= 1.0
+**Author:** Jonathan Puu  
+**License:** [GPL-3.0](LICENSE)  
+**Based on:** [Olen/Spond](https://github.com/Olen/Spond) — the original unofficial Python library for the Spond API (GPL-3.0, © Olen)
 
-## Install
+> ⚠️ This project is unofficial and not affiliated with or endorsed by Spond AS. Use of the Spond API is subject to Spond's own terms of service.
 
-`pip install spond`
+---
 
-## Usage
+## Features
 
-You need a username and password from Spond
+- **Members** — view all group members, click any member to message them
+- **Events** — upcoming events with attendance counts
+- **Messages** — full inbox, threaded chat view, reply to chats, start new DMs
+- **Posts** — group feed with images, reactions, comments, nested replies, new post composer
+- **Groups** — switch between groups
 
+All in a single HTML file. No npm, no build step, no framework.
 
+---
 
-### Example code
+## Files
+
+| File | Purpose |
+|------|---------|
+| `spond-embed.html` | The main client — embed this anywhere (GoHighLevel, WordPress, etc.) |
+| `spond-proxy.php` | PHP reverse proxy — upload to your web host to bypass CORS |
+| `.htaccess` | Apache config — required on shared hosts to pass Authorization headers through to PHP |
+
+---
+
+## Quick Start
+
+### 1. Deploy the proxy
+
+Upload `spond-proxy.php` and `.htaccess` to the same folder on your web host (e.g. `public_html/`).
+
+### 2. Configure the client
+
+Open `spond-embed.html` and update the two constants near the top of the `<script>`:
+
+```js
+const API_BASE      = 'https://yourdomain.com/spond-proxy.php/core/v1/';
+const CHAT_API_BASE = 'https://yourdomain.com/spond-proxy.php/chat/v1/';
+```
+
+### 3. Embed
+
+Paste the contents of `spond-embed.html` into any HTML embed block — works great in GoHighLevel custom HTML elements, WordPress pages, or any static host.
+
+---
+
+## How It Works
 
 ```
-import asyncio
-from spond import spond
-
-username = 'my@mail.invalid'
-password = 'Pa55worD'
-group_id = 'C9DC791FFE63D7914D6952BE10D97B46'  # fake 
-
-async def main():
-    s = spond.Spond(username=username, password=password)
-    group = await s.get_group(group_id)
-    print(group['name'])
-    await s.clientsession.close()
-
-asyncio.run(main())
-
+Browser
+  └── spond-embed.html
+        ├── GET/POST → yourdomain.com/spond-proxy.php/core/v1/...
+        └── GET/POST → yourdomain.com/spond-proxy.php/chat/v1/...
+                              │
+                        spond-proxy.php
+                              │
+                        api.spond.com  (Spond's API)
 ```
 
-## Key methods
+The Spond API blocks direct browser requests (CORS). The PHP proxy forwards all requests server-side and adds the correct CORS headers so the browser accepts the response.
 
-### get_groups()
+**Auth flow:**
+1. `POST /core/v1/login` → Bearer token
+2. `POST /core/v1/chat` → separate chat `auth` token (required for all `/chat/v1/` endpoints)
+3. All subsequent calls use the appropriate token
 
-Get details of all your group memberships and all members of those groups.
+---
 
-### get_events([group_id, subgroup_id, include_scheduled, max_end, min_end, max_start, min_start, max_events])
+## API Endpoints Used
 
-Get details of events, limited to 100 by default.
-Optional parameters allow filtering by start and end datetimes, group and subgroup; more events to be returned; inclusion of 'scheduled' events.
+Discovered by inspecting the official Spond web app's network traffic:
 
-### get_person()
-Get a member's details.
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/core/v1/login` | POST | Authenticate |
+| `/core/v1/profile` | GET | Logged-in user profile |
+| `/core/v1/groups/` | GET | All groups |
+| `/core/v1/sponds/` | GET | Events |
+| `/core/v1/chat` | POST | Exchange Bearer token for chat auth token |
+| `/chat/v1/chats` | GET | Chat list |
+| `/chat/v1/chats/{id}/messages` | GET | Messages in a chat |
+| `/chat/v1/messages` | POST | Send a message / start a new chat |
+| `/chat/v1/chats/seen` | PUT | Mark all chats read |
+| `/core/v1/posts` | GET | Group posts feed |
+| `/core/v1/posts` | POST | Create a new post |
+| `/core/v1/posts/{id}/comments` | POST | Add a comment |
+| `/core/v1/posts/{id}/comments/{commentId}` | POST | Reply to a comment |
 
-### get_messages(max_chats=100)
-Get chats, limited to 100 by default.
-Optional parameter allows more events to be returned.
+---
 
-### send_message(text, user=None, group_uid=None, chat_id=None)
-Send a message with content `text`.
-Either specify an existing `chat_id`, or both `user` and `group_uid` for a new chat.
+## Proxy Security
 
-### get_event_attendance_xlsx()
-Get Excel attendance report for a single event, available via the web client.
+By default `ALLOWED_ORIGIN` is set to `'*'` (open). Once deployed, lock it down to your site:
 
-### change_response()
-Change a member's response for an event (e.g. accept/decline)
+```php
+// spond-proxy.php — line 30
+define('ALLOWED_ORIGIN', 'https://your-site.com');
+```
 
-## Example scripts
+---
 
-The following scripts are included in `examples/`.  Some of the scripts might require additional packages to be installed (csv, ical etc).
+## Credits
 
-Rename the file `config.py.sample` to `config.py` and add your username and password to the file before running the samples.
+This project is a browser-based JavaScript port and extension of the API client concepts pioneered by:
 
-### ical.py
-Generates an ics-file of upcoming events.
+- **[Olen/Spond](https://github.com/Olen/Spond)** — the original unofficial Python library, GPL-3.0
+  - API endpoint discovery, authentication flow, and data model understanding all draw heavily from this work.
 
-### groups.py
-Generates a json-file for each group you are a member of.
+Additional API endpoints were discovered by inspecting the Spond web application's network traffic.
 
-### attendance.py &lt;-f from_date&gt; &lt;-t to_date&gt; [-a]
-Generates a csv-file for each event between `from_date` and `to_date` with attendance status of all organizers.  The optional parameter `-a` also includes all members that has been invited.
+---
 
-### transactions.py
-Generates a csv-file for transactions / payments appeared in [Spond Club](https://www.spond.com/spond-club-overview/) > Finance > Payments.
+## License
 
-## AsyncIO
-[Asyncio](https://docs.python.org/3/library/asyncio.html) might seem intimidating in the beginning, but for basic stuff, it is quite easy to follow the examples above, and just remeber to prefix functions that use the API with `async def ...` and to `await` all API-calls and all calls to said functions.
+GNU General Public License v3.0 — see [LICENSE](LICENSE).
 
-[This article](https://realpython.com/async-io-python/) will give a nice introduction to both why, when and how to use asyncio in projects.
-
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
