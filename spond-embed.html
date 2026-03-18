@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<!--
+  spond-browser-client / spond-embed.html
+  ========================================
+  Author:  Jonathan Puu
+  Project: https://github.com/jonathanpuu/spond-browser-client
+  License: GNU General Public License v3.0 (GPL-3.0)
+
+  Based on / inspired by:
+    Olen/Spond — https://github.com/Olen/Spond
+    Copyright (C) Olen — GPL-3.0 License
+    An unofficial Python library for the Spond API.
+
+  This project is an independent browser-based JavaScript port and extension
+  of the Spond API client concept. It is not affiliated with or endorsed by
+  Spond AS. Use of the Spond API is subject to Spond's own terms of service.
+
+  This program is free software: you can redistribute it and/or modify it
+  under the terms of the GNU General Public License as published by the Free
+  Software Foundation, either version 3 of the License, or (at your option)
+  any later version.
+
+  This program is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+  FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License along with
+  this program. If not, see <https://www.gnu.org/licenses/>.
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Spond Viewer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --surface2: #1e2229;
+    --border: #2a2f3a;
+    --accent: #4ef0a0;
+    --accent2: #3dd4ff;
+    --danger: #ff5e7a;
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --radius: 10px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 64px;
+  }
+
+  header { text-align: center; margin-bottom: 36px; }
+  header h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  header p { color: var(--muted); font-size: 0.85rem; margin-top: 6px; font-family: 'DM Mono', monospace; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 20px; font-family: 'DM Mono', monospace;
+  }
+
+  .field { margin-bottom: 16px; }
+  label {
+    display: block; font-size: 0.75rem; font-weight: 600;
+    color: var(--muted); margin-bottom: 6px;
+    letter-spacing: 0.06em; font-family: 'DM Mono', monospace;
+  }
+  input, select, textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 10px 14px; color: var(--text);
+    font-size: 0.9rem; font-family: 'DM Mono', monospace;
+    outline: none; transition: border-color 0.2s;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.6; }
+  select option { background: var(--surface2); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+  .row { display: flex; gap: 12px; }
+  .row .field { flex: 1; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 22px; border-radius: 6px;
+    font-family: 'DM Mono', monospace; font-size: 0.82rem;
+    font-weight: 500; cursor: pointer; border: none;
+    transition: opacity 0.15s, transform 0.1s; letter-spacing: 0.04em;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary   { background: var(--accent);  color: #0d0f14; }
+  .btn-accent2   { background: var(--accent2); color: #0d0f14; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn:disabled  { opacity: 0.45; cursor: not-allowed; }
+  .btn-sm { padding: 7px 14px; font-size: 0.75rem; }
+  .btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+
+  .status {
+    font-family: 'DM Mono', monospace; font-size: 0.78rem;
+    padding: 10px 14px; border-radius: 6px; margin-top: 14px; display: none;
+  }
+  .status.show    { display: block; }
+  .status.info    { background: rgba(78,240,160,0.08);  border: 1px solid rgba(78,240,160,0.25);  color: var(--accent); }
+  .status.error   { background: rgba(255,94,122,0.08);  border: 1px solid rgba(255,94,122,0.3);   color: var(--danger); }
+  .status.loading { background: rgba(61,212,255,0.07);  border: 1px solid rgba(61,212,255,0.2);   color: var(--accent2); }
+
+  .spinner {
+    width: 14px; height: 14px; border: 2px solid currentColor;
+    border-top-color: transparent; border-radius: 50%;
+    display: inline-block; animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #results { width: 100%; max-width: 600px; }
+
+  .section-label {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--muted);
+    font-family: 'DM Mono', monospace; margin-bottom: 10px;
+  }
+
+  .group-header {
+    background: linear-gradient(135deg, rgba(78,240,160,0.07) 0%, rgba(61,212,255,0.07) 100%);
+    border: 1px solid rgba(78,240,160,0.2); border-radius: var(--radius);
+    padding: 18px 22px; margin-bottom: 16px; display: flex; align-items: center; gap: 16px;
+  }
+  .group-icon {
+    width: 42px; height: 42px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px; display: flex; align-items: center;
+    justify-content: center; font-size: 1.2rem; flex-shrink: 0;
+  }
+  .group-name { font-size: 1.1rem; font-weight: 700; }
+  .group-meta { font-size: 0.75rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 3px; }
+
+  .tabs {
+    display: flex; gap: 4px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    padding: 4px; margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1; padding: 8px 6px; border: none; border-radius: 5px;
+    background: transparent; color: var(--muted);
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+
+  .item-list { display: flex; flex-direction: column; gap: 8px; }
+  .item-row {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; transition: border-color 0.15s;
+  }
+  .item-row:hover { border-color: var(--accent); }
+  .item-row.clickable { cursor: pointer; }
+  .avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--surface2); display: flex; align-items: center;
+    justify-content: center; font-size: 0.85rem; font-weight: 700;
+    color: var(--accent); flex-shrink: 0; border: 1px solid var(--border);
+  }
+  .item-main { flex: 1; min-width: 0; }
+  .item-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-sub   { font-size: 0.72rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge {
+    font-size: 0.65rem; padding: 3px 8px; border-radius: 20px;
+    font-family: 'DM Mono', monospace;
+    background: rgba(78,240,160,0.1); color: var(--accent);
+    border: 1px solid rgba(78,240,160,0.2); white-space: nowrap; flex-shrink: 0;
+  }
+  .badge-blue { background: rgba(61,212,255,0.08); color: var(--accent2); border-color: rgba(61,212,255,0.2); }
+
+  .event-list { display: flex; flex-direction: column; gap: 10px; }
+  .event-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; transition: border-color 0.15s;
+  }
+  .event-item:hover { border-color: var(--accent2); }
+  .event-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; }
+  .event-meta  { display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.72rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  /* ── Messages ── */
+  .msg-actions { display: flex; gap: 10px; margin-bottom: 16px; }
+
+  .chat-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px; cursor: pointer;
+    display: flex; align-items: center; gap: 14px; transition: border-color 0.15s;
+    margin-bottom: 8px;
+  }
+  .chat-item:hover { border-color: var(--accent); }
+  .chat-item.unread { border-color: rgba(78,240,160,0.35); }
+  .chat-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, rgba(78,240,160,0.2), rgba(61,212,255,0.2));
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 700; color: var(--accent); flex-shrink: 0;
+  }
+  .chat-body  { flex: 1; min-width: 0; }
+  .chat-name  { font-size: 0.88rem; font-weight: 600; }
+  .chat-preview { font-size: 0.72rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chat-time  { font-size: 0.68rem; color: var(--muted); font-family: 'DM Mono', monospace; flex-shrink: 0; }
+  .unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+  #threadView { display: none; }
+  .thread-header {
+    display: flex; align-items: center; gap: 12px;
+    padding-bottom: 14px; margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .thread-name { font-size: 1rem; font-weight: 700; }
+  .thread-sub  { font-size: 0.72rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .back-btn {
+    background: none; border: none; color: var(--accent2);
+    font-family: 'DM Mono', monospace; font-size: 0.78rem;
+    cursor: pointer; padding: 0; flex-shrink: 0;
+  }
+  .back-btn:hover { text-decoration: underline; }
+
+  .message-list {
+    display: flex; flex-direction: column; gap: 10px;
+    max-height: 340px; overflow-y: auto;
+    padding-right: 4px; margin-bottom: 16px;
+  }
+  .message-list::-webkit-scrollbar { width: 4px; }
+  .message-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg-bubble {
+    max-width: 82%; padding: 10px 14px;
+    border-radius: 12px; font-size: 0.85rem; line-height: 1.5;
+  }
+  .msg-bubble.mine {
+    align-self: flex-end;
+    background: rgba(78,240,160,0.12); border: 1px solid rgba(78,240,160,0.25);
+    border-bottom-right-radius: 3px;
+  }
+  .msg-bubble.theirs {
+    align-self: flex-start;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-bottom-left-radius: 3px;
+  }
+  .msg-sender { font-size: 0.67rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 4px; }
+  .msg-time   { font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 5px; text-align: right; }
+
+  .reply-box { display: flex; gap: 8px; align-items: flex-end; }
+  .reply-box textarea { flex: 1; min-height: 60px; }
+
+  #composePanel {
+    display: none;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px; margin-bottom: 16px;
+  }
+  #composePanel.open { display: block; }
+  .compose-title {
+    font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--accent2);
+    margin-bottom: 14px; font-family: 'DM Mono', monospace;
+  }
+
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.85rem; font-family: 'DM Mono', monospace; }
+
+  .cors-banner {
+    background: rgba(255,94,122,0.07); border: 1px solid rgba(255,94,122,0.25);
+    border-radius: 8px; padding: 14px 18px;
+    font-size: 0.78rem; font-family: 'DM Mono', monospace; color: #ff9aaa;
+    margin-bottom: 20px; line-height: 1.6; display: none; max-width: 600px; width: 100%;
+  }
+  .cors-banner.show { display: block; }
+  .cors-banner strong { color: var(--danger); }
+
+  @media (max-width: 480px) { .row { flex-direction: column; } .msg-actions { flex-wrap: wrap; } }
+
+  /* ── Member action modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px; width: 90%; max-width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal-name {
+    font-size: 1rem; font-weight: 700; margin-bottom: 4px;
+  }
+  .modal-email {
+    font-size: 0.75rem; color: var(--muted); font-family: 'DM Mono', monospace;
+    margin-bottom: 18px;
+  }
+  .modal-actions { display: flex; flex-direction: column; gap: 10px; }
+  .modal-close {
+    position: absolute; top: 14px; right: 16px;
+    background: none; border: none; color: var(--muted);
+    font-size: 1.1rem; cursor: pointer; line-height: 1;
+  }
+
+  /* ── Posts panel ── */
+  .post-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-bottom: 10px;
+  }
+  .post-author { font-size: 0.78rem; color: var(--accent); font-family: 'DM Mono', monospace; margin-bottom: 6px; }
+  .post-body   { font-size: 0.9rem; line-height: 1.6; white-space: pre-wrap; }
+  .post-meta   { font-size: 0.68rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 8px; }
+  .post-comments { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .comment-item { display: flex; gap: 10px; }
+  .comment-avatar { width: 26px; height: 26px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; color: var(--accent2); flex-shrink: 0; margin-top: 2px; }
+  .comment-bubble { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+  .comment-author { font-size: 0.7rem; font-weight: 700; color: var(--accent2); font-family: 'DM Mono', monospace; margin-bottom: 3px; }
+  .comment-text   { font-size: 0.82rem; line-height: 1.5; }
+  .comment-time   { font-size: 0.65rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 4px; }
+  .comment-input-row { display: flex; gap: 8px; margin-top: 10px; }
+  .comment-input-row input { flex: 1; padding: 8px 12px; font-size: 0.82rem; border-radius: 6px; }
+  .toggle-comments-btn { background: none; border: none; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 8px; display:block; }
+  .toggle-comments-btn:hover { color: var(--accent2); }
+  .post-actions-bar { display: flex; gap: 10px; margin-bottom: 16px; }
+  /* ── Lightbox ── */
+  #lightbox { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:200; align-items:center; justify-content:center; cursor:zoom-out; }
+  #lightbox.open { display:flex; }
+  #lightbox img { max-width:92vw; max-height:92vh; border-radius:10px; box-shadow:0 8px 60px rgba(0,0,0,0.8); object-fit:contain; }
+  #lightboxClose { position:fixed; top:16px; right:20px; color:#fff; font-size:1.8rem; cursor:pointer; line-height:1; background:none; border:none; opacity:0.8; }
+  #lightboxClose:hover { opacity:1; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Spond Viewer</h1>
+  <p>// unofficial browser client · zero dependencies</p>
+</header>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button id="lightboxClose" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt=""/>
+</div>
+
+<div class="cors-banner" id="corsBanner">
+  <strong>⚠ CORS Error Detected</strong><br>
+  Upload <code>spond-proxy.php</code> to SiteGround and update both <code>API_BASE</code> and <code>CHAT_API_BASE</code> in the script below.<br>
+  Core API → <code>https://yourdomain.com/spond-proxy.php/core/v1/</code><br>
+  Chat API → <code>https://yourdomain.com/spond-proxy.php/chat/v1/</code>
+</div>
+
+<!-- Member action modal -->
+<div class="modal-overlay" id="memberModal" onclick="closeMemberModal(event)">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closeMemberModal()">✕</button>
+    <div class="modal-name" id="modalMemberName">—</div>
+    <div class="modal-email" id="modalMemberEmail">—</div>
+    <div class="modal-actions">
+      <button class="btn btn-accent2" id="modalOpenChatBtn" onclick="modalOpenExistingChat()">💬 Open Existing Chat</button>
+      <button class="btn btn-primary"  id="modalNewMsgBtn"  onclick="modalStartNewMessage()">✏ New Message</button>
+      <button class="btn btn-secondary" onclick="closeMemberModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Login -->
+<div class="card" id="loginCard">
+  <div class="card-title">▸ Connect to Spond</div>
+  <div class="row">
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="username" placeholder="you@example.com" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+  </div>
+  <div class="field">
+    <label>Group ID <span style="opacity:.5;font-weight:400">(optional — leave blank to auto-select first group)</span></label>
+    <input type="text" id="groupId" placeholder="C9DC791FFE63D7914D6952BE10D97B46"/>
+  </div>
+  <div class="btn-group">
+    <button class="btn btn-primary" id="loginBtn" onclick="handleLogin()">Connect</button>
+  </div>
+  <div class="status" id="loginStatus"></div>
+</div>
+
+<!-- Results -->
+<div id="results" style="display:none">
+
+  <div class="group-header">
+    <div class="group-icon">🏆</div>
+    <div>
+      <div class="group-name" id="groupName">—</div>
+      <div class="group-meta" id="groupMeta">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="padding:0;overflow:hidden">
+    <div class="tabs" style="margin:12px 12px 0">
+      <button class="tab active" id="tabMembers"  onclick="switchTab('members')">Members</button>
+      <button class="tab"        id="tabEvents"   onclick="switchTab('events')">Events</button>
+      <button class="tab"        id="tabMessages" onclick="switchTab('messages')">Messages</button>
+      <button class="tab"        id="tabPosts"    onclick="switchTab('posts')">Posts</button>
+      <button class="tab"        id="tabGroups"   onclick="switchTab('groups')">Groups</button>
+    </div>
+    <div style="padding:16px">
+      <div id="panelMembers"></div>
+      <div id="panelEvents"   style="display:none"></div>
+      <div id="panelGroups"   style="display:none"></div>
+
+      <!-- Posts panel -->
+      <div id="panelPosts" style="display:none">
+        <div class="post-actions-bar">
+          <button class="btn btn-primary btn-sm" onclick="toggleNewPost()">✚ New Post</button>
+          <button class="btn btn-secondary btn-sm" onclick="refreshPosts()">↻ Refresh</button>
+        </div>
+        <!-- New post composer -->
+        <div id="newPostPanel" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px">
+          <div class="compose-title">▸ New Group Post</div>
+          <div class="field">
+            <label>Post to Group</label>
+            <select id="postGroup"><option value="">— select a group —</option></select>
+          </div>
+          <div class="field">
+            <label>Message</label>
+            <textarea id="postText" placeholder="What's on your mind?" style="min-height:100px"></textarea>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary btn-sm" id="submitPostBtn" onclick="submitPost()">Post</button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleNewPost()">Cancel</button>
+          </div>
+          <div class="status" id="postStatus"></div>
+        </div>
+        <!-- Post list -->
+        <div id="postList"></div>
+        <div style="text-align:center;margin-top:12px">
+          <button class="btn btn-secondary btn-sm" id="loadMorePostsBtn" onclick="loadMorePosts()" style="display:none">Load More</button>
+        </div>
+        <div class="status" id="postsStatus"></div>
+      </div>
+
+      <!-- Messages panel -->
+      <div id="panelMessages" style="display:none">
+
+        <div class="msg-actions">
+          <button class="btn btn-accent2 btn-sm" onclick="toggleCompose()">✏ New Message</button>
+          <button class="btn btn-secondary btn-sm" id="refreshChatsBtn" onclick="refreshChats()">↻ Refresh</button>
+        </div>
+
+        <!-- Compose -->
+        <div id="composePanel">
+          <div class="compose-title">▸ New Message</div>
+          <div class="field">
+            <label>Recipient</label>
+            <select id="composeRecipient"><option value="">— select a member —</option></select>
+          </div>
+          <div class="field">
+            <label>Group</label>
+            <select id="composeGroup"><option value="">— select a group —</option></select>
+          </div>
+          <div class="field">
+            <label>Message</label>
+            <textarea id="composeText" placeholder="Type your message…"></textarea>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary btn-sm" id="sendNewBtn" onclick="sendNewMessage()">Send</button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleCompose()">Cancel</button>
+          </div>
+          <div class="status" id="composeStatus"></div>
+        </div>
+
+        <!-- Chat list -->
+        <div id="chatList"></div>
+
+        <!-- Thread view -->
+        <div id="threadView">
+          <div class="thread-header">
+            <button class="back-btn" onclick="closeThread()">← Back</button>
+            <div class="chat-avatar" id="threadAvatar">?</div>
+            <div>
+              <div class="thread-name" id="threadName">—</div>
+              <div class="thread-sub"  id="threadSub">—</div>
+            </div>
+          </div>
+          <div class="message-list" id="messageList"></div>
+          <div class="reply-box">
+            <textarea id="replyText" placeholder="Type a reply… (Ctrl+Enter to send)" onkeydown="replyOnEnter(event)"></textarea>
+            <button class="btn btn-primary btn-sm" id="replyBtn" onclick="sendReply()" style="flex-shrink:0;height:60px">Send</button>
+          </div>
+          <div class="status" id="replyStatus"></div>
+        </div>
+
+        <div class="status" id="messagesStatus"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;text-align:center">
+    <button class="btn btn-secondary" onclick="handleLogout()">✕ Disconnect</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────
+// CONFIG — both must go through your SiteGround proxy
+// ─────────────────────────────────────────────────
+const API_BASE      = 'https://assets.realquickdesign.com/spond-proxy.php/core/v1/';
+const CHAT_API_BASE = 'https://assets.realquickdesign.com/spond-proxy.php/chat/v1/';
+
+// ─────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────
+let token       = null;
+let allGroups   = null;
+let allEvents   = null;
+let allChats    = null;
+let myProfileId = null;
+let activeChat  = null;
+
+// ─────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────
+const authHeaders = () => ({ 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` });
+
+function showStatus(id, msg, type) {
+  const el = document.getElementById(id);
+  el.textContent = msg; el.className = `status show ${type}`;
+}
+function hideStatus(id) { document.getElementById(id).className = 'status'; }
+
+function setLoading(btnId, loading, label = 'Connect') {
+  const btn = document.getElementById(btnId);
+  btn.disabled = loading;
+  btn.innerHTML = loading ? '<span class="spinner"></span> Working…' : label;
+}
+
+function isCorsError(err) {
+  return err instanceof TypeError &&
+    (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('CORS'));
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleString(undefined, { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
+  catch { return iso; }
+}
+function fmtTime(iso) {
+  if (!iso) return '';
+  try { return new Date(iso).toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' }); }
+  catch { return ''; }
+}
+const initials = (f='', l='') => ((f[0]||'')+(l[0]||'')).toUpperCase() || '?';
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+const cap = s => s[0].toUpperCase() + s.slice(1);
+const countAccepted = r => r?.acceptedIds?.length ?? 0;
+
+// ─────────────────────────────────────────────────
+// API — Core
+// ─────────────────────────────────────────────────
+async function apiLogin(username, password) {
+  const res = await fetch(`${API_BASE}login`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email: username, password })
+  });
+  if (!res.ok) throw new Error(`Login failed (${res.status})`);
+  const data = await res.json();
+  if (!data.loginToken) throw new Error('No token returned — check credentials');
+  return data;
+}
+async function apiGetProfile() {
+  const res = await fetch(`${API_BASE}profile`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Profile fetch failed (${res.status})`);
+  return res.json();
+}
+async function apiGetGroups() {
+  const res = await fetch(`${API_BASE}groups/`, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to fetch groups (${res.status})`);
+  return res.json();
+}
+async function apiGetEvents(groupId = null, max = 100) {
+  const url = new URL(`${API_BASE}sponds/`);
+  url.searchParams.set('max', String(max));
+  url.searchParams.set('scheduled', 'false');
+  if (groupId) url.searchParams.set('groupId', groupId);
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  if (!res.ok) throw new Error(`Failed to fetch events (${res.status})`);
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────
+// API — Chat
+// Step 1: POST /core/v1/chat with Bearer token → get {url, auth}
+// Step 2: Use that `auth` value as header for all /chat/v1/ calls
+// ─────────────────────────────────────────────────
+
+let _chatAuth = null;  // the separate chat auth token (NOT the Bearer token)
+
+async function ensureChatAuth() {
+  if (_chatAuth) return;
+  const res = await fetch(`${API_BASE}chat`, { method: 'POST', headers: authHeaders() });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Chat auth exchange failed (${res.status}): ${body}`);
+  }
+  const data = await res.json();
+  console.log('[Spond] chat auth response:', JSON.stringify(data));
+  // data.auth is the token; data.url may give us the base URL but we use CHAT_API_BASE
+  _chatAuth = data.auth;
+}
+
+function chatAuthHeaders() {
+  return { 'Content-Type': 'application/json', 'auth': _chatAuth };
+}
+
+// Unwrap whatever shape the API returns into a plain array
+function unwrapArray(raw, ...keys) {
+  console.log('[Spond] raw response:', JSON.stringify(raw).slice(0, 500));
+  if (Array.isArray(raw)) return raw;
+  for (const k of keys) {
+    if (Array.isArray(raw?.[k])) return raw[k];
+  }
+  if (raw && typeof raw === 'object') {
+    for (const v of Object.values(raw)) {
+      if (Array.isArray(v)) return v;
+    }
+  }
+  return [];
+}
+
+async function apiGetChats(max = 100) {
+  await ensureChatAuth();
+  const url = new URL(`${CHAT_API_BASE}chats`);
+  url.searchParams.set('max', String(max));
+  const res = await fetch(url.toString(), { headers: chatAuthHeaders() });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to fetch chats (${res.status}): ${body}`);
+  }
+  const raw = await res.json();
+  return unwrapArray(raw, 'chats', 'data', 'results', 'items');
+}
+
+async function apiGetChatMessages(chatId, count = 20) {
+  await ensureChatAuth();
+  const url = new URL(`${CHAT_API_BASE}chats/${chatId}/messages`);
+  url.searchParams.set('count', String(count));
+  const res = await fetch(url.toString(), { headers: chatAuthHeaders() });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to load messages (${res.status}): ${body}`);
+  }
+  const raw = await res.json();
+  return unwrapArray(raw, 'messages', 'data', 'results', 'items');
+}
+
+async function apiMarkSeen() {
+  await ensureChatAuth();
+  await fetch(`${CHAT_API_BASE}chats/seen`, { method: 'PUT', headers: chatAuthHeaders() });
+}
+
+async function apiReplyToChat(chatId, text) {
+  await ensureChatAuth();
+  const res = await fetch(`${CHAT_API_BASE}messages`, {
+    method: 'POST',
+    headers: chatAuthHeaders(),
+    body: JSON.stringify({ chatId, text, type: 'TEXT' })
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
+    throw new Error(`Failed to send reply (${res.status}): ${detail}`);
+  }
+  return res.json();
+}
+
+async function apiStartNewChat(recipientProfileId, groupId, text) {
+  await ensureChatAuth();
+  const body = JSON.stringify({ text, type: 'TEXT', recipient: recipientProfileId, groupId });
+  console.log('[Spond] POST /chat/v1/messages body:', body);
+  const res = await fetch(`${CHAT_API_BASE}messages`, {
+    method: 'POST',
+    headers: chatAuthHeaders(),
+    body
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
+    console.error('[Spond] send error response:', detail);
+    throw new Error(`Failed to send message (${res.status}): ${detail}`);
+  }
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────
+// Login / Logout
+// ─────────────────────────────────────────────────
+async function handleLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const groupId  = document.getElementById('groupId').value.trim();
+  if (!username || !password) { showStatus('loginStatus','✗ Please enter your email and password.','error'); return; }
+
+  setLoading('loginBtn', true);
+  showStatus('loginStatus','Authenticating…','loading');
+  document.getElementById('corsBanner').classList.remove('show');
+
+  try {
+    const loginData = await apiLogin(username, password);
+    token = loginData.loginToken;
+    showStatus('loginStatus','✓ Authenticated. Fetching data…','info');
+
+    try { const p = await apiGetProfile(); myProfileId = p.id || p.profileId || null; } catch(e) {}
+
+    allGroups = await apiGetGroups();
+    let targetGroup = null;
+    if (groupId) {
+      targetGroup = allGroups.find(g => g.id === groupId);
+      if (!targetGroup) { showStatus('loginStatus',`✗ Group '${groupId}' not found.`,'error'); setLoading('loginBtn',false,'Connect'); return; }
+    } else if (allGroups.length > 0) {
+      targetGroup = allGroups[0];
+    }
+
+    allEvents = await apiGetEvents(targetGroup?.id ?? null);
+    renderResults(targetGroup, allGroups, allEvents);
+    hideStatus('loginStatus');
+    document.getElementById('loginCard').style.display = 'none';
+    document.getElementById('results').style.display   = 'block';
+
+  } catch(err) {
+    if (isCorsError(err)) {
+      document.getElementById('corsBanner').classList.add('show');
+      showStatus('loginStatus','✗ CORS error — see banner above.','error');
+    } else {
+      showStatus('loginStatus',`✗ ${err.message}`,'error');
+    }
+  } finally {
+    setLoading('loginBtn', false, 'Connect');
+  }
+}
+
+function handleLogout() {
+  token = null; _chatAuth = null;
+  allGroups = null; allEvents = null; allChats = null;
+  myProfileId = null; activeChat = null;
+  document.getElementById('results').style.display   = 'none';
+  document.getElementById('loginCard').style.display = 'block';
+  document.getElementById('password').value = '';
+  hideStatus('loginStatus');
+}
+
+// ─────────────────────────────────────────────────
+// Render — Groups / Members / Events
+// ─────────────────────────────────────────────────
+function renderResults(group, groups, events) {
+  if (group) {
+    document.getElementById('groupName').textContent = group.name || 'Unnamed Group';
+    const mc = (group.members||[]).length;
+    document.getElementById('groupMeta').textContent = `${mc} member${mc!==1?'s':''} · ID: ${group.id}`;
+  } else {
+    document.getElementById('groupName').textContent = 'All Groups';
+    document.getElementById('groupMeta').textContent = `${groups.length} group${groups.length!==1?'s':''}`;
+  }
+  renderMembers(group ? (group.members||[]) : []);
+  renderEvents(events||[]);
+  renderGroups(groups||[]);
+  populateComposeSelects(groups, group);
+}
+
+// Store current member list for modal index lookup
+let currentMembers = [];
+
+function renderMembers(members) {
+  currentMembers = members;
+  const el = document.getElementById('panelMembers');
+  if (!members.length) { el.innerHTML='<div class="empty">No members found.<br>Select a specific group to see members.</div>'; return; }
+  el.innerHTML = `
+    <div class="section-label">${members.length} Member${members.length!==1?'s':''}</div>
+    <div class="item-list">
+      ${members.map((m, i)=>`
+        <div class="item-row clickable" onclick="openMemberModal(${i})">
+          <div class="avatar">${initials(m.firstName,m.lastName)}</div>
+          <div class="item-main">
+            <div class="item-title">${esc(m.firstName||'')} ${esc(m.lastName||'')}</div>
+            <div class="item-sub">${esc(m.email||m.id||'—')}</div>
+          </div>
+          ${m.roles?.length?`<div class="badge">${esc(m.roles[0].name||'Member')}</div>`:'<div class="badge">Member</div>'}
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderEvents(events) {
+  const el = document.getElementById('panelEvents');
+  if (!events.length) { el.innerHTML='<div class="empty">No upcoming events found.</div>'; return; }
+  el.innerHTML = `
+    <div class="section-label">${events.length} Event${events.length!==1?'s':''}</div>
+    <div class="event-list">
+      ${events.map(e=>`
+        <div class="event-item">
+          <div class="event-title">${esc(e.heading||'Untitled Event')}</div>
+          <div class="event-meta">
+            <span>📅 ${fmtDate(e.startTimestamp)}</span>
+            ${e.location?.feature?`<span>📍 ${esc(e.location.feature)}</span>`:''}
+            ${e.responses?`<span>✓ ${countAccepted(e.responses)} accepted</span>`:''}
+          </div>
+          ${e.description?`<div style="font-size:.78rem;color:var(--muted);margin-top:8px;font-family:'DM Mono',monospace;line-height:1.5">${esc(e.description).slice(0,160)}${e.description.length>160?'…':''}</div>`:''}
+        </div>`).join('')}
+    </div>`;
+}
+
+function renderGroups(groups) {
+  const el = document.getElementById('panelGroups');
+  if (!groups.length) { el.innerHTML='<div class="empty">No groups found.</div>'; return; }
+  el.innerHTML = `
+    <div class="section-label">${groups.length} Group${groups.length!==1?'s':''}</div>
+    <div class="item-list">
+      ${groups.map(g=>`
+        <div class="item-row clickable" onclick="loadGroup('${esc(g.id)}')">
+          <div class="avatar" style="color:var(--accent2)">🏅</div>
+          <div class="item-main">
+            <div class="item-title">${esc(g.name||'Unnamed')}</div>
+            <div class="item-sub">${(g.members||[]).length} members · ${esc(g.id)}</div>
+          </div>
+          <div class="badge badge-blue">View →</div>
+        </div>`).join('')}
+    </div>`;
+}
+
+async function loadGroup(gid) {
+  try {
+    const group = allGroups.find(g => g.id === gid);
+    if (!group) return;
+    allEvents = await apiGetEvents(gid);
+    renderResults(group, allGroups, allEvents);
+    switchTab('members');
+  } catch(err) { console.error(err); }
+}
+
+// ─────────────────────────────────────────────────
+// Render — Messages / Chat list
+// ─────────────────────────────────────────────────
+async function loadMessages() {
+  showStatus('messagesStatus','Loading chats…','loading');
+  document.getElementById('chatList').innerHTML = '';
+  try {
+    allChats = await apiGetChats(100);
+    hideStatus('messagesStatus');
+    renderChatList(allChats);
+  } catch(err) {
+    showStatus('messagesStatus',`✗ ${err.message}`,'error');
+  }
+}
+
+function chatDisplayName(chat) {
+  if (chat.name) return chat.name;
+
+  // Spond returns participant profile IDs in chat.participants
+  const participantIds = chat.participants || chat.members || chat.users || [];
+  if (participantIds.length) {
+    const profileMap = buildProfileMap();
+    const names = participantIds
+      .filter(id => typeof id === 'string' && id !== myProfileId)
+      .map(id => {
+        const m = profileMap[id];
+        return m ? `${m.firstName||''} ${m.lastName||''}`.trim() || m.email : null;
+      })
+      .filter(Boolean);
+    if (names.length) return names.join(', ');
+  }
+
+  const id = chat.chatId || chat.id || '';
+  return `Chat ${id.slice(0, 8).toUpperCase()}`;
+}
+
+function renderChatList(chats) {
+  const el = document.getElementById('chatList');
+  if (!chats?.length) { el.innerHTML='<div class="empty">No chats found.</div>'; return; }
+
+  // Normalise id field
+  const normalised = chats.map(c => ({ ...c, id: c.chatId || c.id }));
+  allChats = normalised;
+
+  const label = `<div class="section-label">${normalised.length} Chat${normalised.length!==1?'s':''}</div>`;
+  const items = normalised.map((c, i) => {
+    const name = chatDisplayName(c);
+
+    // Latest message is in c.message (not latestMessage)
+    const lastMsg = c.message || c.latestMessage || c.lastMessage || {};
+    let preview = lastMsg.text || c.lastMessageText || c.previewText || '(no messages yet)';
+    if (preview === 'chat_message_deleted') preview = '(message deleted)';
+
+    const time   = fmtTime(c.newestTimestamp || lastMsg.timestamp || c.updated || c.lastActivity);
+    const unread = c.unread === true || (c.unreadCount || 0) > 0;
+
+    return `
+      <div class="chat-item${unread?' unread':''}" onclick="openThread(${i})">
+        <div class="chat-avatar">${esc(name.slice(0,2).toUpperCase())}</div>
+        <div class="chat-body">
+          <div class="chat-name">${esc(name)}</div>
+          <div class="chat-preview">${esc(String(preview).slice(0,80))}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+          <div class="chat-time">${esc(time)}</div>
+          ${unread ? '<div class="unread-dot"></div>' : ''}
+        </div>
+      </div>`;
+  }).join('');
+  el.innerHTML = label + items;
+}
+
+// ─────────────────────────────────────────────────
+// Thread (open a chat)
+// ─────────────────────────────────────────────────
+async function openThread(idx) {
+  activeChat = allChats[idx];
+  if (!activeChat) return;
+  console.log('[Spond] opening chat object:', JSON.stringify(activeChat).slice(0, 800));
+  document.getElementById('chatList').style.display    = 'none';
+  document.getElementById('composePanel').classList.remove('open');
+  document.getElementById('threadView').style.display  = 'block';
+
+  const name = chatDisplayName(activeChat);
+  document.getElementById('threadAvatar').textContent = name.slice(0,2).toUpperCase();
+  document.getElementById('threadName').textContent   = name;
+  document.getElementById('threadSub').textContent    = `Chat ID: ${activeChat.id || activeChat.chatId}`;
+  document.getElementById('messageList').innerHTML    = '<div class="empty"><span class="spinner"></span> Loading…</div>';
+  document.getElementById('replyText').value = '';
+  hideStatus('replyStatus');
+
+  try {
+    const messages = await apiGetChatMessages(activeChat.id);
+    renderMessages(messages);
+  } catch(err) {
+    document.getElementById('messageList').innerHTML = `<div class="empty">Could not load messages:<br>${esc(err.message)}</div>`;
+  }
+}
+
+// Build a profile-ID → member lookup from all loaded groups
+function buildProfileMap() {
+  const map = {};
+  for (const g of (allGroups || [])) {
+    for (const m of (g.members || [])) {
+      const pid = m.profile?.id;
+      if (pid) map[pid] = m;
+      // also index by member id just in case
+      if (m.id) map[m.id] = m;
+    }
+  }
+  return map;
+}
+
+function memberNameByProfileId(profileId) {
+  if (!profileId) return 'Member';
+  const map = buildProfileMap();
+  const m = map[profileId];
+  if (m) return `${m.firstName || ''} ${m.lastName || ''}`.trim() || m.email || 'Member';
+  return `${profileId.slice(0, 8)}…`;
+}
+
+function renderMessages(messages) {
+  const el = document.getElementById('messageList');
+  if (!messages?.length) { el.innerHTML='<div class="empty">No messages yet.</div>'; return; }
+
+  const sorted = [...messages].sort((a,b) => new Date(a.timestamp||0) - new Date(b.timestamp||0));
+  el.innerHTML = sorted.map(m => {
+    // Spond message fields: m.user = profile ID of sender, m.text, m.timestamp
+    const senderId = m.user || m.author?.id || m.senderId || '';
+    const isMine   = senderId === myProfileId;
+    const sender   = isMine ? 'You' : memberNameByProfileId(senderId);
+    return `
+      <div class="msg-bubble ${isMine?'mine':'theirs'}">
+        ${!isMine ? `<div class="msg-sender">${esc(sender)}</div>` : ''}
+        ${esc(m.text || '[no text]')}
+        <div class="msg-time">${fmtTime(m.timestamp)}</div>
+      </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function closeThread() {
+  activeChat = null;
+  document.getElementById('threadView').style.display = 'none';
+  document.getElementById('chatList').style.display   = '';
+  document.getElementById('replyText').value = '';
+  hideStatus('replyStatus');
+}
+
+async function sendReply() {
+  if (!activeChat) return;
+  const text = document.getElementById('replyText').value.trim();
+  if (!text) return;
+  setLoading('replyBtn', true, 'Send');
+  hideStatus('replyStatus');
+  try {
+    await apiReplyToChat(activeChat.id, text);
+    document.getElementById('replyText').value = '';
+    const messages = await apiGetChatMessages(activeChat.id);
+    renderMessages(messages);
+    showStatus('replyStatus','✓ Sent.','info');
+    setTimeout(() => hideStatus('replyStatus'), 2000);
+  } catch(err) {
+    showStatus('replyStatus',`✗ ${err.message}`,'error');
+  } finally {
+    setLoading('replyBtn', false, 'Send');
+  }
+}
+
+function replyOnEnter(e) {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendReply(); }
+}
+
+async function refreshChats() {
+  _chatAuth = null; // force re-exchange on next chat call
+  closeThread();
+  await loadMessages();
+}
+
+// ─────────────────────────────────────────────────
+// Compose — New Message
+// ─────────────────────────────────────────────────
+// Keyed map of optionValue → member object, so we can inspect at send time
+const memberMap = {};
+
+function populateComposeSelects(groups, activeGroup) {
+  const recipSel = document.getElementById('composeRecipient');
+  const grpSel   = document.getElementById('composeGroup');
+
+  grpSel.innerHTML = '<option value="">— select a group —</option>' +
+    (groups||[]).map(g=>`<option value="${esc(g.id)}">${esc(g.name||g.id)}</option>`).join('');
+
+  const members = activeGroup
+    ? (activeGroup.members||[])
+    : (groups||[]).flatMap(g => g.members||[]);
+
+  // Deduplicate and build map
+  const seen = new Set();
+  const unique = members.filter(m => {
+    const key = m.profile?.id || m.uid || m.id;
+    if (seen.has(key)) return false;
+    seen.add(key); return true;
+  });
+
+  // Debug: log member structure so we can see what ID fields exist
+  console.log('[Spond] sample member object:', unique[0]);
+
+  recipSel.innerHTML = '<option value="">— select a member —</option>' +
+    unique.map(m => {
+      // Try every possible profile ID field Spond might return
+      const pid  = m.profile?.id || m.profileId || m.uid || m.id || '';
+      const name = `${m.firstName||''} ${m.lastName||''}`.trim() || m.email || pid;
+      memberMap[pid] = m;
+      return `<option value="${esc(pid)}" data-name="${esc(name)}">${esc(name)}${pid ? '' : ' ⚠ no profile ID'}</option>`;
+    }).join('');
+
+  if (activeGroup) grpSel.value = activeGroup.id;
+}
+
+function toggleCompose(forceOpen = false) {
+  const panel  = document.getElementById('composePanel');
+  const isOpen = panel.classList.contains('open');
+  if (forceOpen || !isOpen) panel.classList.add('open');
+  else panel.classList.remove('open');
+  if (!isOpen || forceOpen) { closeThread(); document.getElementById('chatList').style.display = ''; }
+  hideStatus('composeStatus');
+}
+
+async function sendNewMessage() {
+  const recipientId = document.getElementById('composeRecipient').value;
+  const groupId     = document.getElementById('composeGroup').value;
+  const text        = document.getElementById('composeText').value.trim();
+
+  if (!recipientId) { showStatus('composeStatus','✗ Please select a recipient.','error'); return; }
+  if (!groupId)     { showStatus('composeStatus','✗ Please select a group.','error');     return; }
+  if (!text)        { showStatus('composeStatus','✗ Please enter a message.','error');    return; }
+
+  // Warn if this member had no profile ID (option value will be their member ID instead)
+  const member = memberMap[recipientId];
+  console.log('[Spond] sending to recipient ID:', recipientId, '| member:', member);
+
+  setLoading('sendNewBtn', true, 'Send');
+  showStatus('composeStatus','Sending…','loading');
+  try {
+    await apiStartNewChat(recipientId, groupId, text);
+    document.getElementById('composeText').value = '';
+    showStatus('composeStatus','✓ Message sent! Refreshing chats…','info');
+    setTimeout(async () => {
+      toggleCompose();
+      allChats = await apiGetChats(100);
+      renderChatList(allChats);
+    }, 1200);
+  } catch(err) {
+    showStatus('composeStatus',`✗ ${err.message}`,'error');
+  } finally {
+    setLoading('sendNewBtn', false, 'Send');
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Member modal
+// ─────────────────────────────────────────────────
+let modalMember = null;
+let currentGroupForModal = null;
+
+function openMemberModal(idx) {
+  modalMember = currentMembers[idx];
+  if (!modalMember) return;
+  const name  = `${modalMember.firstName||''} ${modalMember.lastName||''}`.trim() || 'Member';
+  document.getElementById('modalMemberName').textContent  = name;
+  document.getElementById('modalMemberEmail').textContent = modalMember.email || modalMember.id || '—';
+
+  // Check if an existing chat already exists with this person
+  const profileId = modalMember.profile?.id || modalMember.profileId || modalMember.id;
+  const existing  = (allChats || []).find(c =>
+    (c.participants || []).includes(profileId)
+  );
+  const openBtn = document.getElementById('modalOpenChatBtn');
+  openBtn.disabled = !existing;
+  openBtn.style.opacity = existing ? '1' : '0.4';
+  openBtn.title = existing ? 'Open existing chat' : 'No existing chat with this person';
+
+  document.getElementById('memberModal').classList.add('open');
+}
+
+function closeMemberModal(e) {
+  if (e && e.target !== document.getElementById('memberModal')) return;
+  document.getElementById('memberModal').classList.remove('open');
+  modalMember = null;
+}
+
+function modalOpenExistingChat() {
+  if (!modalMember || !allChats) return;
+  const profileId = modalMember.profile?.id || modalMember.profileId || modalMember.id;
+  const idx = allChats.findIndex(c => (c.participants || []).includes(profileId));
+  if (idx === -1) return;
+  document.getElementById('memberModal').classList.remove('open');
+  switchTab('messages');
+  // small delay to let the panel render before opening thread
+  setTimeout(() => openThread(idx), 100);
+}
+
+function modalStartNewMessage() {
+  if (!modalMember) return;
+  document.getElementById('memberModal').classList.remove('open');
+  switchTab('messages');
+  setTimeout(() => {
+    const profileId = modalMember.profile?.id || modalMember.profileId || modalMember.id || '';
+    toggleCompose(true);
+    // Pre-select recipient
+    const sel = document.getElementById('composeRecipient');
+    if (sel) sel.value = profileId;
+  }, 100);
+}
+
+// ─────────────────────────────────────────────────
+// API — Posts  (core/v1/posts, Bearer token)
+// ─────────────────────────────────────────────────
+async function apiGetPosts(groupId, max = 30) {
+  const url = new URL(`${API_BASE}posts`);
+  if (groupId) url.searchParams.set('groupId', groupId);
+  url.searchParams.set('max', String(max));
+  url.searchParams.set('type', 'PLAIN');
+  url.searchParams.set('includeComments', 'true');
+  url.searchParams.set('includeReadStatus', 'true');
+  url.searchParams.set('includeSeenCount', 'true');
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Failed to fetch posts (${res.status}): ${body}`);
+  }
+  const raw = await res.json();
+  console.log('[Spond] posts raw:', JSON.stringify(raw).slice(0, 600));
+  return unwrapArray(raw, 'posts', 'data', 'results', 'items');
+}
+
+async function apiCreatePost(groupId, text) {
+  const res = await fetch(`${API_BASE}posts`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ groupId, text, type: 'PLAIN' })
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
+    throw new Error(`Failed to create post (${res.status}): ${detail}`);
+  }
+  return res.json();
+}
+
+// ─────────────────────────────────────────────────
+// Render — Posts
+// ─────────────────────────────────────────────────
+// ─────────────────────────────────────────────────
+// Render — Posts
+// ─────────────────────────────────────────────────
+let currentPostGroupId = null;
+let currentPostMax     = 10;   // start with 10, load more in increments
+
+async function loadPosts(groupId, max) {
+  currentPostGroupId = groupId || null;
+  if (max) currentPostMax = max;
+
+  showStatus('postsStatus', 'Loading posts…', 'loading');
+  document.getElementById('postList').innerHTML = '';
+  document.getElementById('loadMorePostsBtn').style.display = 'none';
+
+  // Populate post group selector
+  const sel = document.getElementById('postGroup');
+  sel.innerHTML = '<option value="">— select a group —</option>' +
+    (allGroups||[]).map(g=>`<option value="${esc(g.id)}">${esc(g.name||g.id)}</option>`).join('');
+  if (groupId) sel.value = groupId;
+
+  try {
+    const posts = await apiGetPosts(groupId, currentPostMax);
+    hideStatus('postsStatus');
+    renderPosts(posts);
+    // Show Load More if we got a full page
+    if (posts.length >= currentPostMax) {
+      document.getElementById('loadMorePostsBtn').style.display = 'inline-flex';
+    }
+  } catch(err) {
+    showStatus('postsStatus', `✗ ${err.message}`, 'error');
+  }
+}
+
+async function loadMorePosts() {
+  currentPostMax += 10;
+  const btn = document.getElementById('loadMorePostsBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Loading…';
+  try {
+    const posts = await apiGetPosts(currentPostGroupId, currentPostMax);
+    renderPosts(posts);
+    btn.disabled = false;
+    btn.innerHTML = 'Load More';
+    if (posts.length < currentPostMax) btn.style.display = 'none';
+  } catch(err) {
+    showStatus('postsStatus', `✗ ${err.message}`, 'error');
+    btn.disabled = false;
+    btn.innerHTML = 'Load More';
+  }
+}
+
+async function refreshPosts() {
+  currentPostMax = 10;
+  await loadPosts(currentPostGroupId, 10);
+}
+
+async function apiAddComment(postId, text, parentCommentId = null) {
+  // Top-level comment: POST /posts/{postId}/comments
+  // Reply to comment:  POST /posts/{postId}/comments/{commentId}
+  const url = parentCommentId
+    ? `${API_BASE}posts/${postId}/comments/${parentCommentId}`
+    : `${API_BASE}posts/${postId}/comments`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ text })
+  });
+  if (!res.ok) {
+    let detail = '';
+    try { detail = JSON.stringify(await res.json()); } catch { detail = await res.text(); }
+    throw new Error(`Failed to add comment (${res.status}): ${detail}`);
+  }
+  return res.json();
+}
+
+async function submitComment(postId, inputId, btnId, parentCommentId = null) {
+  const input = document.getElementById(inputId);
+  const btn   = document.getElementById(btnId);
+  const text  = input.value.trim();
+  if (!text) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try {
+    await apiAddComment(postId, text, parentCommentId);
+    input.value = '';
+    const posts = await apiGetPosts(currentPostGroupId, currentPostMax);
+    renderPosts(posts);
+  } catch(err) {
+    alert(`Error: ${err.message}`);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '↩';
+  }
+}
+
+function toggleReplyBox(id) {
+  const el = document.getElementById(`reply-box-${id}`);
+  if (!el) return;
+  const hidden = el.style.display === 'none' || !el.style.display;
+  el.style.display = hidden ? 'flex' : 'none';
+  if (hidden) el.querySelector('input')?.focus();
+}
+
+function toggleComments(postId) {
+  const el = document.getElementById(`comments-${postId}`);
+  if (!el) return;
+  const hidden = el.style.display === 'none';
+  el.style.display = hidden ? 'block' : 'none';
+  const btn = document.getElementById(`toggle-btn-${postId}`);
+  if (btn) {
+    const count = el.dataset.count || '0';
+    btn.textContent = hidden ? `▲ Hide comments` : `▼ ${count} comment${count!=='1'?'s':''}`;
+  }
+}
+
+function countAllComments(comments) {
+  return (comments||[]).reduce((n, c) => n + 1 + countAllComments(c.children || []), 0);
+}
+
+function buildCommentHtml(c, postId, depth) {
+  const cAuthor      = commentAuthorName(c);
+  const cInits       = cAuthor.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+  const replyInputId = `reply-input-${c.id}`;
+  const replyBtnId   = `reply-btn-${c.id}`;
+  const indentStyle  = depth > 0 ? `margin-left:${depth * 24}px;` : '';
+
+  const childrenHtml = (c.children||[]).map(child =>
+    buildCommentHtml(child, postId, depth + 1)
+  ).join('');
+
+  return `
+    <div style="${indentStyle}">
+      <div class="comment-item">
+        <div class="comment-avatar">${esc(cInits)}</div>
+        <div class="comment-bubble">
+          <div class="comment-author">${esc(cAuthor)}</div>
+          <div class="comment-text">${esc(c.text||'')}</div>
+          <div class="comment-time">
+            ${fmtDate(c.timestamp||'')}
+            <button onclick="toggleReplyBox('${c.id}')"
+              style="background:none;border:none;color:var(--accent2);font-family:'DM Mono',monospace;font-size:0.65rem;cursor:pointer;margin-left:8px">
+              ↩ Reply
+            </button>
+          </div>
+        </div>
+      </div>
+      <div id="reply-box-${c.id}" class="comment-input-row" style="display:none;margin-left:36px;margin-top:4px;margin-bottom:4px">
+        <input type="text" id="${replyInputId}" placeholder="Reply to ${esc(cAuthor)}…"
+          onkeydown="if(event.key==='Enter') submitComment('${postId}','${replyInputId}','${replyBtnId}','${c.id}')"/>
+        <button class="btn btn-secondary btn-sm" id="${replyBtnId}"
+          onclick="submitComment('${postId}','${replyInputId}','${replyBtnId}','${c.id}')"
+          style="padding:8px 14px;flex-shrink:0">↩</button>
+      </div>
+      ${childrenHtml}
+    </div>`;
+}
+
+function renderPosts(posts) {
+  const el = document.getElementById('postList');
+  if (!posts?.length) { el.innerHTML = '<div class="empty">No posts found.</div>'; return; }
+
+  el.innerHTML = posts.map(p => {
+    const author  = memberNameByProfileId(p.ownerId) || 'Member';
+    const title   = p.title || '';
+    const body    = p.body || p.text || '';
+    const time    = fmtDate(p.timestamp || p.createdTime || p.created);
+    const seen    = p.seenCount ?? '';
+    const reactionCount = p.reactions
+      ? Object.values(p.reactions).reduce((sum, v) => sum + (typeof v === 'object' ? Object.keys(v).length : 1), 0)
+      : 0;
+
+    // Images
+    const media = p.media || p.attachments || [];
+    const imagesHtml = media.length ? `
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+        ${media.map(m => {
+          const src = spondImageUrl(m);
+          if (!src) return '';
+          return `<img src="${esc(src)}" alt="post image"
+            style="max-width:180px;max-height:180px;border-radius:8px;border:1px solid var(--border);object-fit:cover;cursor:zoom-in"
+            onclick="openLightbox('${esc(src)}')"
+            onerror="this.style.display='none'"/>`;
+        }).join('')}
+      </div>` : '';
+
+    // Comments
+    const comments     = p.comments || [];
+    const commentCount = countAllComments(comments);
+    const inputId      = `comment-input-${p.id}`;
+    const btnId        = `comment-btn-${p.id}`;
+    const commentsHtml = comments.map(c => buildCommentHtml(c, p.id, 0)).join('');
+
+    return `
+      <div class="post-item">
+        <div class="post-author">✦ ${esc(author)}</div>
+        ${title ? `<div style="font-weight:700;font-size:.95rem;margin-bottom:6px">${esc(title)}</div>` : ''}
+        <div class="post-body">${esc(body)}</div>
+        ${imagesHtml}
+        <div class="post-meta">
+          ${esc(time)}
+          ${seen !== '' ? ` · 👁 ${seen} seen` : ''}
+          ${reactionCount > 0 ? ` · ${reactionCount} reaction${reactionCount!==1?'s':''}` : ''}
+        </div>
+        ${commentCount > 0 ? `
+          <button class="toggle-comments-btn" id="toggle-btn-${p.id}" onclick="toggleComments('${p.id}')">
+            ▼ ${commentCount} comment${commentCount!==1?'s':''}
+          </button>` : ''}
+        <div id="comments-${p.id}" data-count="${commentCount}" style="display:none">
+          <div class="post-comments">${commentsHtml}</div>
+        </div>
+        <div class="comment-input-row">
+          <input type="text" id="${inputId}" placeholder="Add a comment…"
+            onkeydown="if(event.key==='Enter') submitComment('${p.id}','${inputId}','${btnId}')"/>
+          <button class="btn btn-secondary btn-sm" id="${btnId}"
+            onclick="submitComment('${p.id}','${inputId}','${btnId}')"
+            style="padding:8px 14px;flex-shrink:0">↩</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function commentAuthorName(c) {
+  const id = c.fromProfileId || c.ownerId || c.authorId || c.owner?.id || c.author?.id || c.userId || '';
+  if (id) {
+    const name = memberNameByProfileId(id);
+    if (name && !name.endsWith('…')) return name;
+  }
+  if (c.author?.firstName) return `${c.author.firstName} ${c.author.lastName||''}`.trim();
+  if (c.firstName)         return `${c.firstName} ${c.lastName||''}`.trim();
+  return 'Member';
+}
+
+function spondImageUrl(mediaItem) {
+  const raw = mediaItem?.url || mediaItem?.fileUrl || mediaItem?.thumbnailUrl
+            || mediaItem?.uri || mediaItem?.link || '';
+  if (!raw) return null;
+  if (raw.startsWith('http')) return raw;
+  return `https://api.spond.com${raw}`;
+}
+
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('lightboxImg').src = '';
+  document.body.style.overflow = '';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'Enter' && document.getElementById('loginCard').style.display !== 'none') handleLogin();
+});
+
+function toggleNewPost() {
+  const panel = document.getElementById('newPostPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  hideStatus('postStatus');
+}
+
+async function submitPost() {
+  const groupId = document.getElementById('postGroup').value;
+  const text    = document.getElementById('postText').value.trim();
+  if (!groupId) { showStatus('postStatus', '✗ Please select a group.', 'error'); return; }
+  if (!text)    { showStatus('postStatus', '✗ Please enter a message.', 'error'); return; }
+
+  setLoading('submitPostBtn', true, 'Post');
+  showStatus('postStatus', 'Posting…', 'loading');
+  try {
+    await apiCreatePost(groupId, text);
+    document.getElementById('postText').value = '';
+    showStatus('postStatus', '✓ Post published!', 'info');
+    toggleNewPost();
+    await loadPosts(groupId);
+  } catch(err) {
+    showStatus('postStatus', `✗ ${err.message}`, 'error');
+  } finally {
+    setLoading('submitPostBtn', false, 'Post');
+  }
+}
+
+// ─────────────────────────────────────────────────
+// Tabs
+// ─────────────────────────────────────────────────
+const ALL_TABS = ['members','events','messages','posts','groups'];
+
+function switchTab(name) {
+  ALL_TABS.forEach(t => {
+    document.getElementById(`panel${cap(t)}`).style.display = t === name ? '' : 'none';
+    document.getElementById(`tab${cap(t)}`).className = `tab${t === name ? ' active' : ''}`;
+  });
+  if (name === 'messages' && allChats === null) loadMessages();
+  if (name === 'messages') apiMarkSeen().catch(() => {});
+  if (name === 'posts') {
+    const gid = currentPostGroupId ||
+      document.getElementById('groupMeta').textContent.match(/ID:\s*([A-F0-9]{20,})/i)?.[1] ||
+      null;
+    loadPosts(gid);
+  }
+}
+</script>
+</body>
+</html>
