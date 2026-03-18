@@ -2,7 +2,7 @@
 
 An unofficial, zero-dependency browser-based client for the [Spond](https://spond.com) API — built as a single embeddable HTML file with a lightweight PHP proxy.
 
-**Author:** Jonathan Puu  
+**Author:** THRESHER 
 **License:** [GPL-3.0](LICENSE)  
 **Based on:** [Olen/Spond](https://github.com/Olen/Spond) — the original unofficial Python library for the Spond API (GPL-3.0, © Olen)
 
