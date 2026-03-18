@@ -1,0 +1,11 @@
+# spond-browser-client / .htaccess
+# Author:  THRESHER
+# License: GPL-3.0
+# https://github.com/jonathanpuu/spond-browser-client
+#
+# Pass Authorization header through to PHP.
+# Apache strips it by default on many shared hosts (including SiteGround).
+# This file must live in the same directory as spond-proxy.php.
+RewriteEngine On
+RewriteCond %{HTTP:Authorization} ^(.*)
+RewriteRule .* - [e=HTTP_AUTHORIZATION:%1]
